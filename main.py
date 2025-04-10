@@ -1,10 +1,12 @@
 import os
+import time
 import csv
 import json
 import subprocess
 from typing import Dict, List, Optional, TypedDict
 from ghapi.core import GhApi
-from mem0 import Memory
+from mem0 import MemoryClient
+from google import genai
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -13,28 +15,11 @@ load_dotenv()
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TARGET_REPO = "mem0ai/mem0"
-MAX_DEPENDENTS = 10  # Limit for testing purposes
+MAX_DEPENDENTS = 5  # Limit for testing purposes
 
 # Initialize clients
 gh = GhApi(token=GITHUB_TOKEN)
-memory = Memory.from_config(
-    {
-        "llm": {
-            "provider": "gemini",
-            "config": {
-                "model": "gemini-1.5-flash-latest",
-                "temperature": 0.2,
-                "max_tokens": 2000,
-            },
-        },
-        "embedder": {
-            "provider": "gemini",
-            "config": {
-                "model": "models/text-embedding-004",
-            },
-        },
-    }
-)
+memory = MemoryClient(api_key=os.getenv("MEM0_API_KEY"))
 
 
 class UserData(TypedDict):
@@ -43,6 +28,10 @@ class UserData(TypedDict):
     email: Optional[str]
     repo_name: str
     repo_url: str
+    repo_description: Optional[str]
+    repo_stars: Optional[int]
+    repo_language: Optional[str]
+    repo_topics: Optional[List[str]]
 
 
 def get_repo_dependents() -> List[Dict]:
@@ -60,7 +49,6 @@ def get_repo_dependents() -> List[Dict]:
         # result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         # dependents = json.loads(result.stdout)
         dependents = json.loads(open("dependants.json").read())
-        print(dependents.values())
         return list(dependents["all_public_dependent_repos"])
     except Exception as e:
         print(f"Error fetching dependents: {str(e)}")
@@ -76,17 +64,18 @@ def get_email_from_commits(username: str, repo: str) -> Optional[str]:
                 "@users.noreply.github.com"
             ):
                 return commit.commit.author.email
-    except:
-        print(f"Error fetching commits for {username}/{repo}")
+    except Exception as e:
+        print(f"Error fetching commits for {username}/{repo}: {str(e)}")
     return None
 
 
 def get_user_data(dependent: Dict) -> Optional[UserData]:
-    """Get GitHub user profile and email."""
+    """Get GitHub user profile, email and repository details."""
     owner, repo_name = dependent["name"].split("/")
     try:
         user = gh.users.get_by_username(owner)
         email = user.email or get_email_from_commits(owner, repo_name)
+        repo = gh.repos.get(owner=owner, repo=repo_name)
 
         return {
             "username": owner,
@@ -94,6 +83,10 @@ def get_user_data(dependent: Dict) -> Optional[UserData]:
             "email": email,
             "repo_name": repo_name,
             "repo_url": f"https://github.com/{dependent['name']}",
+            "repo_description": repo.description,
+            "repo_stars": repo.stargazers_count,
+            "repo_language": repo.language,
+            "repo_topics": repo.topics,
         }
     except Exception as e:
         print(f"Error getting data for {owner}: {str(e)}")
@@ -102,12 +95,64 @@ def get_user_data(dependent: Dict) -> Optional[UserData]:
 
 def process_user(user: UserData) -> Optional[str]:
     """Store user context and generate personalized email."""
-    # Store context
-    memory.add(f"GitHub user @{user['username']} uses mem0 in their repo {user['repo_name']} ({user['repo_url']})", user_id=user["username"])
-    # Generate email
-    prompt = f"Write a short, friendly email to {user['name'] or user['username']} about their use of mem0 in {user['repo_name']}. List a brief of the features of mem0 and how it can be used to enhance their project. End the email asking to book a call for any kind of help, feedback or questions."
-    result = memory.add(prompt, user_id=user["username"])
-    return result.content if result else None
+    system = [
+        {
+            "role": "system",
+            "content": """You are an AI assistant designed to help discover and connect with developers using mem0.
+            Your goal is to understand their usage context and create personalized, meaningful outreach as a Developer Relations Engineer at Mem0.
+            Focus on building genuine connections by highlighting relevant mem0 features that could benefit their specific project.""",
+        },
+    ]
+
+    #  we can use short term memory too here cause this is one time thing,
+    # but lets stick to long term memory coz it will help us extend this into a whole platform to
+    # manage these emails and reply to future emails agentically
+    memory.add(system, user_id=user["username"], version="v2")
+
+    context = [
+        {"role": "user", "content": f"GitHub user @{user['username']} is a developer"},
+        {
+            "role": "user",
+            "content": f"They have a repository called {user['repo_name']} which {user['repo_description'] or 'has no description'}",
+        },
+        {
+            "role": "user",
+            "content": f"Their repository is located at {user['repo_url']} and has {user['repo_stars']} stars",
+        },
+        {
+            "role": "user",
+            "content": f"The primary language used in the repository is {user['repo_language'] or 'not specified'}",
+        },
+        {
+            "role": "user",
+            "content": f"Repository topics: {', '.join(user['repo_topics']) if user['repo_topics'] else 'none specified'}",
+        },
+        {"role": "user", "content": "They use mem0 in their project"},
+        # add more info about the user from their github repo. like how they use it, project details, maybe run an agent to figure out how they are currently using mem0. you can also include more memories about user from their social media profiles or something, but its hard to find the correct user profiles and can often times go wrong cause of same names, unavailability of social profiles, using different handles on different platforms, etc.
+    ]
+
+    memory.add(context, user_id=user["username"], infer=False, version="v2")
+
+    prompt = (
+        f"Write a short, personalised email to {user['name']} about their use of mem0."
+    )
+    memories = memory.search(query=prompt, user_id=user["username"])
+
+    gemini_client = genai.Client(api_key=GEMINI_API_KEY)
+    full_prompt = f"""
+    {prompt} \
+    Brief features of mem0 relevant to their project. \
+    End the email asking to book a call for any kind of help, feedback or questions.
+    Keep it short, simple and friendly. DO NOT INCLUDE ANY TAGS LIKE [Your Name] or [Insert two or three points here].
+    
+    User Details:
+    {memories}
+    """
+
+    response = gemini_client.models.generate_content(
+        model="gemini-2.0-flash", contents=full_prompt
+    )
+    return response.text if response else None
 
 
 def save_contact(writer, user: UserData, email_content: str):
@@ -116,7 +161,7 @@ def save_contact(writer, user: UserData, email_content: str):
     print("Generated Email:")
     print(email_content)
     print("-" * 80)
-    writer.writerow([user["name"] or user["username"], user["email"]])
+    writer.writerow([user["name"] or user["username"], user["email"], email_content])
 
 
 def main():
@@ -124,11 +169,9 @@ def main():
         print("Error: Please set GITHUB_TOKEN and GEMINI_API_KEY environment variables")
         return
 
-    # Get and process dependents
     dependents = get_repo_dependents()
     print(f"Found {len(dependents)} dependents, processing first {MAX_DEPENDENTS}...")
 
-    # Process users and save results
     with open("emails.csv", "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["name", "email"])
@@ -138,6 +181,7 @@ def main():
                 if user["email"]:
                     if email := process_user(user):
                         save_contact(writer, user, email)
+                        time.sleep(2)
 
 
 if __name__ == "__main__":

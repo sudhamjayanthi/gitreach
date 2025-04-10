@@ -9,7 +9,9 @@ dependencies = [
     "dotenv>=0.9.9",
     "ghapi>=1.0.6",
     "github-dependents-info>=1.6.3",
+    "google-genai>=1.10.0",
     "google-generativeai>=0.8.4",
+    "litellm>=1.65.4.post1",
     "mem0ai>=0.1.86",
     "requests>=2.32.3",
 ]
