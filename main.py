@@ -48,7 +48,10 @@ def get_repo_dependents() -> List[Dict]:
         # ]
         # result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         # dependents = json.loads(result.stdout)
+
+        # hardcoded for mem0
         dependents = json.loads(open("dependants.json").read())
+        
         return list(dependents["all_public_dependent_repos"])
     except Exception as e:
         print(f"Error fetching dependents: {str(e)}")
@@ -98,9 +101,9 @@ def process_user(user: UserData) -> Optional[str]:
     system = [
         {
             "role": "system",
-            "content": """You are an AI assistant designed to help discover and connect with developers using mem0.
-            Your goal is to understand their usage context and create personalized, meaningful outreach as a Developer Relations Engineer at Mem0.
-            Focus on building genuine connections by highlighting relevant mem0 features that could benefit their specific project.""",
+            "content": f"""You are an AI assistant designed to help discover and connect with developers using {TARGET_REPO.split('/')[1]}.
+            Your goal is to understand their usage context and create personalized, meaningful outreach as a Developer Relations Engineer at {TARGET_REPO.split('/')[1]}.
+            Focus on building genuine connections by highlighting relevant {TARGET_REPO.split('/')[1]} features that could benefit their specific project.""",
         },
     ]
 
@@ -127,22 +130,22 @@ def process_user(user: UserData) -> Optional[str]:
             "role": "user",
             "content": f"Repository topics: {', '.join(user['repo_topics']) if user['repo_topics'] else 'none specified'}",
         },
-        {"role": "user", "content": "They use mem0 in their project"},
+        {"role": "user", "content": f"They use {TARGET_REPO} in their project"},
         # add more info about the user from their github repo. like how they use it, project details, maybe run an agent to figure out how they are currently using mem0. you can also include more memories about user from their social media profiles or something, but its hard to find the correct user profiles and can often times go wrong cause of same names, unavailability of social profiles, using different handles on different platforms, etc.
     ]
 
     memory.add(context, user_id=user["username"], infer=False, version="v2")
 
     prompt = (
-        f"Write a short, personalised email to {user['name']} about their use of mem0."
+        f"Write a short, personalised email to {user['name']} about their use of {TARGET_REPO.split('/')[1]}."
     )
     memories = memory.search(query=prompt, user_id=user["username"])
 
     gemini_client = genai.Client(api_key=GEMINI_API_KEY)
     full_prompt = f"""
     {prompt} \
-    Brief features of mem0 relevant to their project. \
-    End the email asking to book a call for any kind of help, feedback or questions.
+    Brief features of {TARGET_REPO.split('/')[1]} relevant to their project. \
+    End the email asking to reach out for any kind of questions, feedback .
     Keep it short, simple and friendly. DO NOT INCLUDE ANY TAGS LIKE [Your Name] or [Insert two or three points here].
     
     User Details:
