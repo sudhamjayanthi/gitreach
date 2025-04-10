@@ -180,7 +180,7 @@ def main():
 
     with open("emails.csv", "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["name", "email"])
+        writer.writerow(["name", "email", "email_content"])
 
         for dependent in dependents[:MAX_DEPENDENTS]:
             if user := get_user_data(dependent):
