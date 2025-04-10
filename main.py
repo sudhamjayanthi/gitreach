@@ -14,8 +14,11 @@ load_dotenv()
 # Configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 TARGET_REPO = "mem0ai/mem0"
-MAX_DEPENDENTS = 5  # Limit for testing purposes
+
+# Limit for testing purposes
+MAX_DEPENDENTS = 5  
 
 # Initialize clients
 gh = GhApi(token=GITHUB_TOKEN)

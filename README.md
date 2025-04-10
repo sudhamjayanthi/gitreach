@@ -1,11 +1,11 @@
 # GitReach
 
-An automated developer outreach tool that discovers engineers and organizations using the mem0 GitHub repository, enriches their public context, stores their profile as persistent memory via mem0, and creates personalized, contextual emails.
+An automated developer outreach tool that discovers users of your OSS Github repository, enriches their public context, stores their profile as persistent memory via mem0, and creates personalized, contextual emails.
 
 ## Features
 
--   Discovers repositories depending on mem0
--   Enriches user profiles with GitHub data
+-   Discovers repositories depending on your Github repository
+-   Enriches user profiles with Github data
 -   Creates persistent memories using mem0
 -   Generates personalized outreach emails
 -   Exports contact information to CSV
@@ -15,6 +15,7 @@ An automated developer outreach tool that discovers engineers and organizations 
 -   Python 3.13+
 -   GitHub API Token
 -   Google Gemini API Key
+-   Mem0 API Key
 
 ## Installation
 
@@ -24,7 +25,7 @@ An automated developer outreach tool that discovers engineers and organizations 
 ```bash
 uv venv
 source .venv/bin/activate
-uv pip install -r requirements.txt
+uv sync
 ```
 
 ## Configuration
@@ -34,16 +35,17 @@ Set the following environment variables:
 ```bash
 export GITHUB_TOKEN="your-github-token"
 export GEMINI_API_KEY="your-gemini-api-key"
+export MEM0_API_KEY="your-mem0-api-key"
 ```
 
-_Note: This tool uses Mem0 with Google Gemini (via its OpenAI-compatible endpoint) as the LLM and Qdrant as the vector store. Ensure Qdrant is running locally or update the configuration in `main.py`._
+Note: This repo uses the Mem0 Hosted Platform for the memories. You can visit [docs](https://docs.mem0.ai/open-source/quickstart) to learn how to use the OSS version.
 
 ## Usage
 
 Run the script:
 
 ```bash
-python main.py
+uv run main.py
 ```
 
 The script will:
@@ -58,3 +60,12 @@ The script will:
 
 -   Console output showing processed profiles and generated emails
 -   `emails.csv` containing name and email of discovered users
+
+## Future
+
+- [ ] Better Personalisation
+    - [ ] Add more memories about the user from their social media profiles
+    - [ ] Run a Agent to figure out how they're implemening library in their repo currently to suggest improvements
+- [ ] Integrate Email Sending API
+- [ ] Setup an AI Agent to autoreply to people that responsd to cold emails
+- [ ] Create a web interface to fetch, send, track and manage all these agents
