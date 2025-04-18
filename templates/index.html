@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>GitHub Dependent Outreach</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    </head>
+
+    <body>
+        <h1>GitHub Dependent Outreach Tool</h1>
+
+        <form id="repoForm">
+            <label for="repository">Target Repository (owner/repo):</label>
+            <input type="text" id="repository" name="repository" required placeholder="e.g., mem0ai/mem0">
+            <button type="submit" id="submitBtn">Generate Emails</button>
+        </form>
+
+        <div id="status">Enter a repository and click Generate.</div>
+
+        <h2>Generated Emails</h2>
+        <div class="table-container">
+            <table id="resultsTable">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Name</th>
+                        <th>Email Address</th>
+                        <th>Repository</th>
+                        <th>Generated Email Body</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Rows will be added here dynamically -->
+                </tbody>
+            </table>
+        </div>
+
+        <script src="{{ url_for('static', filename='script.js') }}"></script>
+    </body>
+
+</html>

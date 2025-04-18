@@ -1,4 +1,5 @@
 import os
+import random
 import time
 import csv
 import json
@@ -14,6 +15,7 @@ load_dotenv()
 # Configuration
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+MEMO_API_KEY = os.getenv("MEM0_API_KEY")
 
 TARGET_REPO = "mem0ai/mem0"
 
@@ -22,8 +24,7 @@ MAX_DEPENDENTS = 5
 
 # Initialize clients
 gh = GhApi(token=GITHUB_TOKEN)
-memory = MemoryClient(api_key=os.getenv("MEM0_API_KEY"))
-
+memory = MemoryClient(MEMO_API_KEY)
 
 class UserData(TypedDict):
     username: str
@@ -41,19 +42,19 @@ def get_repo_dependents() -> List[Dict]:
     """Get list of repositories depending on target repo."""
     print(f"Fetching dependents for {TARGET_REPO}...")
     try:
-        # cmd = [
-        #     "github-dependents-info",
-        #     "--repo",
-        #     TARGET_REPO,
-        #     "--json",
-        #     "--sort",
-        #     "stars",
-        # ]
-        # result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        # dependents = json.loads(result.stdout)
+        cmd = [
+            "github-dependents-info",
+            "--repo",
+            TARGET_REPO,
+            "--json",
+            "--sort",
+            "stars",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        dependents = json.loads(result.stdout)
 
         # hardcoded for mem0
-        dependents = json.loads(open("dependants.json").read())
+        # dependents = json.loads(open("dependants.json").read())
         
         return list(dependents["all_public_dependent_repos"])
     except Exception as e:
@@ -101,12 +102,15 @@ def get_user_data(dependent: Dict) -> Optional[UserData]:
 
 def process_user(user: UserData) -> Optional[str]:
     """Store user context and generate personalized email."""
+
+
     system = [
         {
             "role": "system",
             "content": f"""You are an AI assistant designed to help discover and connect with developers using {TARGET_REPO.split('/')[1]}.
             Your goal is to understand their usage context and create personalized, meaningful outreach as a Developer Relations Engineer at {TARGET_REPO.split('/')[1]}.
-            Focus on building genuine connections by highlighting relevant {TARGET_REPO.split('/')[1]} features that could benefit their specific project.""",
+            Focus on building genuine connections by highlighting relevant {TARGET_REPO.split('/')[1]} features that could benefit their specific project.
+            """,
         },
     ]
 
@@ -171,8 +175,8 @@ def save_contact(writer, user: UserData, email_content: str):
 
 
 def main():
-    if not all([GITHUB_TOKEN, GEMINI_API_KEY]):
-        print("Error: Please set GITHUB_TOKEN and GEMINI_API_KEY environment variables")
+    if not all([GITHUB_TOKEN, GEMINI_API_KEY, MEMO_API_KEY]):
+        print("Error: Please set GITHUB_TOKEN, GEMINI_API_KEY, MEMO_API_KEY environment variables properly")
         return
 
     dependents = get_repo_dependents()
@@ -182,7 +186,7 @@ def main():
         writer = csv.writer(f)
         writer.writerow(["name", "email", "email_content"])
 
-        for dependent in dependents[:MAX_DEPENDENTS]:
+        for dependent in random.sample(dependents, min(MAX_DEPENDENTS, len(dependents))):
             if user := get_user_data(dependent):
                 if user["email"]:
                     if email := process_user(user):
