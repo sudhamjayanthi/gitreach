@@ -1,6 +1,11 @@
+
+> [!NOTE]
+> see [future](https://github.com/sudhamjayanthi/gitreach/tree/future) branch for WIP web version with flask
+
 # GitReach
 
 An automated developer outreach tool that discovers users of your OSS Github repository, enriches their public context, stores their profile as persistent memory via mem0, and creates personalized, contextual emails.
+
 
 ## Features
 
